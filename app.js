@@ -77,3 +77,39 @@ if(matchMedia('(hover: hover) and (pointer: fine)').matches){
  document.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;x=Math.min(e.clientX+17,innerWidth-40);y=Math.min(e.clientY+20,innerHeight-22);signature.classList.add('visible');signature.classList.toggle('over-link',!!e.target.closest('a,button'));if(!frame)frame=requestAnimationFrame(()=>{signature.style.transform=`translate3d(${x}px,${y}px,0) rotate(-8deg)`;frame=0})});
  document.documentElement.addEventListener('pointerleave',()=>signature.classList.remove('visible'));window.addEventListener('blur',()=>signature.classList.remove('visible'));
 }
+// Album selection keeps the original artwork available in the full-size viewer.
+document.querySelectorAll('[data-album]').forEach(button=>button.addEventListener('click',()=>{
+ const image=document.querySelector('#album-active');image.src=button.dataset.album;image.alt=button.getAttribute('aria-label').replace('Show ','');
+ document.querySelectorAll('[data-album]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+ const sleeve=document.querySelector('.album-sleeve');const items=JSON.parse(sleeve.dataset.pages);items.sort((a,b)=>(b.src===button.dataset.album)-(a.src===button.dataset.album));sleeve.dataset.pages=JSON.stringify(items);
+}));
+document.querySelector('#spin-record')?.addEventListener('click',e=>{const active=document.querySelector('.album-player').classList.toggle('spinning');e.currentTarget.setAttribute('aria-pressed',String(active));e.currentTarget.textContent=active?'Stop the record':'Spin the record'});
+// Dragging moves the object; a deliberate click or keyboard activation opens its process.
+document.querySelectorAll('.draggable-cloud').forEach(cloud=>{
+ let x=0,y=0,start=null,moved=false;
+ const angle=cloud.classList.contains('cloud-one')?-8:9;
+ function paint(){cloud.style.transform=`translate(${x}px,${y}px) rotate(${angle}deg)`}
+ cloud.addEventListener('dragstart',e=>e.preventDefault());
+ cloud.addEventListener('pointerdown',e=>{if(e.button!==0)return;start={px:e.clientX,py:e.clientY,x,y};moved=false;cloud.setPointerCapture(e.pointerId);cloud.style.zIndex=4});
+ cloud.addEventListener('pointermove',e=>{if(!start)return;const dx=e.clientX-start.px,dy=e.clientY-start.py;if(Math.hypot(dx,dy)>6)moved=true;if(!moved)return;const bounds=cloud.parentElement.getBoundingClientRect();x=Math.max(-cloud.offsetLeft,Math.min(bounds.width-cloud.offsetLeft-cloud.offsetWidth,start.x+dx));y=Math.max(-cloud.offsetTop,Math.min(bounds.height-cloud.offsetTop-cloud.offsetHeight,start.y+dy));paint()});
+ cloud.addEventListener('pointerup',()=>{start=null});cloud.addEventListener('pointercancel',()=>{start=null;moved=true});
+ cloud.addEventListener('click',e=>{if(moved){e.preventDefault();moved=false}});
+ cloud.addEventListener('keydown',e=>{const delta={ArrowLeft:[-12,0],ArrowRight:[12,0],ArrowUp:[0,-12],ArrowDown:[0,12]}[e.key];if(delta){e.preventDefault();x+=delta[0];y+=delta[1];paint()}});
+ document.querySelector('#reset-clouds')?.addEventListener('click',()=>{x=y=0;cloud.style.zIndex='';paint()});
+});
+const screening=document.querySelector('#screening-video');
+document.querySelectorAll('[data-film]').forEach(button=>button.addEventListener('click',()=>{
+ if(button.getAttribute('aria-pressed')==='true')return;
+ screening.pause();screening.src=button.dataset.film;screening.poster=button.dataset.poster;screening.setAttribute('aria-label',button.dataset.title+' — video by Meiyi Lau');screening.load();
+ document.querySelector('#film-title').textContent=button.dataset.title;document.querySelector('#film-kind').textContent=button.dataset.kind+' / Meiyi Lau';
+ document.querySelectorAll('[data-film]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+}));
+document.querySelectorAll('[data-album]').forEach(button=>button.addEventListener('click',()=>document.querySelector('.album-player').classList.toggle('packaging',button.dataset.album.includes('packaging'))));
+if(scene){
+ let arrangement=0;
+ scene.querySelectorAll('.scatter').forEach(card=>card.addEventListener('click',()=>{arrangement=(arrangement+1)%3;scene.dataset.shuffle=String(arrangement)}));
+ if(matchMedia('(hover:hover) and (pointer:fine)').matches&&!reducedMotion.matches){
+  scene.addEventListener('pointermove',e=>{const r=scene.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;scene.style.setProperty('--tilt-x',`${Math.max(-3,Math.min(3,-y*6))}deg`);scene.style.setProperty('--tilt-y',`${Math.max(-4,Math.min(4,x*8))}deg`)});
+  scene.addEventListener('pointerleave',()=>{scene.style.setProperty('--tilt-x','0deg');scene.style.setProperty('--tilt-y','0deg')});
+ }
+}
